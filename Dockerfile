@@ -7,12 +7,12 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Install dependencies.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       aardvark-dns build-essential ca-certificates dbus docker-compose \
-       fuse-overlayfs iproute2 iptables libffi-dev libssl-dev \
-       netavark nftables podman procps python3-dev slirp4netns sudo \
-       systemd systemd-sysv uidmap wget \
+       aardvark-dns ca-certificates dbus docker-compose \
+       fuse-overlayfs iproute2 iptables \
+       netavark nftables podman procps python3 slirp4netns sudo \
+       systemd systemd-sysv uidmap \
     && rm -rf /var/lib/apt/lists/* \
-    && rm -Rf /usr/share/doc && rm -Rf /usr/share/man \
+    && rm -rf /usr/share/doc /usr/share/man /usr/share/locale/* /usr/share/i18n/* \
     && apt-get clean
 
 # Make sure systemd doesn't start agettys on tty[1-6].
