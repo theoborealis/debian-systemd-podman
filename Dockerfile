@@ -7,9 +7,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Install dependencies.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       build-essential ca-certificates docker-compose \
-       fuse-overlayfs iproute2 libffi-dev libssl-dev \
-       podman procps python3-dev slirp4netns sudo \
+       aardvark-dns build-essential ca-certificates dbus docker-compose \
+       fuse-overlayfs iproute2 iptables libffi-dev libssl-dev \
+       netavark nftables podman procps python3-dev slirp4netns sudo \
        systemd systemd-sysv uidmap wget \
     && rm -rf /var/lib/apt/lists/* \
     && rm -Rf /usr/share/doc && rm -Rf /usr/share/man \
