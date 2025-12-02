@@ -27,7 +27,10 @@ RUN mkdir -p /etc/containers \
     && echo '[engine]' > /etc/containers/containers.conf \
     && echo 'cgroup_manager = "cgroupfs"' >> /etc/containers/containers.conf \
     && echo '[containers]' >> /etc/containers/containers.conf \
-    && echo 'default_sysctls = []' >> /etc/containers/containers.conf
+    && echo 'default_sysctls = []' >> /etc/containers/containers.conf \
+    # Unprivileged mode runs in user namespace, netavark detects this and tries "systemd-run --user"
+    # which fails without user dbus; hiding it forces direct aardvark-dns start, fixing compose DNS.
+    && mv /usr/bin/systemd-run /usr/bin/systemd-run.bak
 
 ENV ANSIBLE_USER=ansible \
     DOCKER_HOST=unix:///run/podman/podman.sock \
