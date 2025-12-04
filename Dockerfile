@@ -18,9 +18,9 @@ RUN apt-get update \
 # Make sure systemd doesn't start agettys on tty[1-6].
 RUN rm -f /lib/systemd/system/multi-user.target.wants/getty.target
 
-# Configure subuid/subgid for rootless podman
-RUN echo "root:100000:65536" >> /etc/subuid \
-    && echo "root:100000:65536" >> /etc/subgid
+# Configure 1:1 subuid/subgid for podman and mount ability
+RUN echo "root:0:65536" > /etc/subuid \
+    && echo "root:0:65536" > /etc/subgid
 
 # Configure podman for nested containers
 RUN mkdir -p /etc/containers \
