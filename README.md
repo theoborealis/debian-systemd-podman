@@ -1,6 +1,8 @@
 # Systemd Debian Container Images For Ansible and Podman
 
 Systemd Debian Container Images for testing Ansible roles with Molecule and Podman.
+Supports nested rootless podman-in-podman without `--privileged`.
+
 Supported Debian versions:
 
 * `13` - Trixie
@@ -11,44 +13,46 @@ Supported Debian versions:
 Images are built weekly via GitHub Actions and can be downloaded from the
 GitHub Package Registry.
 
-These tags are available. They are updated on changes to the `main` branch
-and are automatically rebuilt once a week.
-
 * `ghcr.io/theoborealis/debian-systemd-podman:13`
 * `ghcr.io/theoborealis/debian-systemd-podman:12`
 
-## Container Features
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| systemd | ✅ | Runs as PID 1 |
-| ansible systemd module | ✅ | Full support |
-| podman | ✅ | Full support |
-| docker-compose | ✅ | Run compose files inside container via podman socket |
-| bridge networking | ✅ | Via volume mount `/proc/sys/net` |
-
 ## How to Use
 
-* [Install Podman](https://podman.io/getting-started/installation)
-* Run the container via Podman (unprivileged):
+```bash
+podman run -it --systemd=true \
+    --cap-add SYS_ADMIN \
+    --device /dev/net/tun \
+    --security-opt seccomp=seccomp-hardened.json \
+    -v /proc/sys/net:/proc/sys/net:rw \
+    ghcr.io/theoborealis/debian-systemd-podman:13
+```
 
-  ```bash
-  podman run -it --systemd=true \
-      --cap-add SYS_ADMIN,NET_ADMIN \
-      --device /dev/fuse \
-      -v /proc/sys/net:/proc/sys/net:rw \
-      ghcr.io/theoborealis/debian-systemd-podman:12
-  ```
+The included `seccomp-hardened.json` blocks ptrace, bpf, kernel modules, kexec,
+open_by_handle_at, and userfaultfd while allowing nested container operations.
 
-- `--cap-add SYS_ADMIN,NET_ADMIN` - required for nested containers
-- `--device /dev/fuse` - required for fuse-overlayfs
-- `-v /proc/sys/net:/proc/sys/net:rw` - network sysctl access (isolated in container network namespace)
+### Host Requirements
 
-## Molecule Testing
+Extend subuid/subgid for nested user namespaces (at least 200000):
 
-This image is designed for testing Ansible roles with Molecule.
+```
+# /etc/subuid and /etc/subgid
+youruser:100000:200000
+```
 
-### Example molecule.yml
+Run `podman system migrate` after changes.
+
+### Nested Containers
+
+The `ansible` user can run containers directly without extra flags:
+
+```bash
+podman exec --user ansible <container> podman run --rm alpine echo hello
+```
+
+Inner containers default to `--pid=host` and VFS storage via
+`/etc/containers/containers.conf` and `/etc/containers/storage.conf`.
+
+## Molecule
 
 ```yaml
 ---
@@ -56,16 +60,17 @@ driver:
   name: podman
 platforms:
   - name: instance
-    image: ghcr.io/theoborealis/debian-systemd-podman:12
+    image: ghcr.io/theoborealis/debian-systemd-podman:13
     systemd: true
     command: /lib/systemd/systemd
     capabilities:
       - SYS_ADMIN
-      - NET_ADMIN
     devices:
-      - /dev/fuse
+      - /dev/net/tun
     volumes:
       - /proc/sys/net:/proc/sys/net:rw
+    security_opts:
+      - seccomp=seccomp-hardened.json
     pre_build_image: true
 provisioner:
   name: ansible
@@ -73,31 +78,13 @@ verifier:
   name: ansible
 ```
 
-### What's Included
+## What's Included
 
 - systemd (PID 1)
-- podman + docker-compose (run compose files inside container)
+- podman + docker-compose
 - Non-root `ansible` user with sudo access
-
-For podman-in-podman support:
-- `/etc/subuid`, `/etc/subgid` configured for user namespaces
-- `cgroup_manager = "cgroupfs"` in `/etc/containers/containers.conf`
-- `DOCKER_HOST=unix:///run/podman/podman.sock` for docker-compose compatibility
-
-## Debugging
-
-```bash
-# Enter the container
-podman exec -it <container_name> bash
-
-# Check systemd
-systemctl status
-
-# Check podman
-podman run --rm alpine echo hello
-
-# Check docker-compose
-docker-compose version
-```
+- `/etc/subuid`, `/etc/subgid` configured for ansible user
+- VFS storage driver, cgroupfs manager
+- `seccomp-hardened.json` for blocking container escape vectors
 
 Forked from <https://github.com/hifis-net/debian-systemd>
